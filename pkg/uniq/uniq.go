@@ -12,8 +12,16 @@ type LineInfo struct {
 }
 
 func Process(reader io.Reader, options Options) ([]LineInfo, error) {
-	scanner := bufio.NewScanner(reader)
+	lineMap, lineOrder, err := scanLines(reader, options)
+	if err != nil {
+		return nil, err
+	}
 
+	return filterLines(lineMap, lineOrder, options), nil
+}
+
+func scanLines(reader io.Reader, options Options) (map[string]*LineInfo, []string, error) {
+	scanner := bufio.NewScanner(reader)
 	var lineOrder []string
 	lineMap := make(map[string]*LineInfo)
 
@@ -21,40 +29,44 @@ func Process(reader io.Reader, options Options) ([]LineInfo, error) {
 		line := scanner.Text()
 		key := processLine(line, options)
 
-		if key != "" {
-			if data, exists := lineMap[key]; exists {
-				data.Count++
-			} else {
-				lineMap[key] = &LineInfo{
-					Data:  line,
-					Count: 1,
-				}
-
-				lineOrder = append(lineOrder, key)
+		if data, exists := lineMap[key]; exists {
+			data.Count++
+		} else {
+			lineMap[key] = &LineInfo{
+				Data:  line,
+				Count: 1,
 			}
+			lineOrder = append(lineOrder, key)
 		}
 	}
 
 	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("error reading input")
+		return nil, nil, fmt.Errorf("error reading input")
 	}
 
+	return lineMap, lineOrder, nil
+}
+
+func filterLines(lineMap map[string]*LineInfo, lineOrder []string, options Options) []LineInfo {
 	var result []LineInfo
 
 	for _, key := range lineOrder {
 		data := lineMap[key]
 
-		if options.Duplicate && data.Count != 1 {
-			result = append(result, *data)
-		} else if options.Unique && data.Count == 1 {
-			result = append(result, *data)
-		} else if !options.Duplicate && !options.Unique {
+		if options.Duplicate {
+			if data.Count > 1 {
+				result = append(result, *data)
+			}
+		} else if options.Unique {
+			if data.Count == 1 {
+				result = append(result, *data)
+			}
+		} else {
 			result = append(result, *data)
 		}
-
 	}
 
-	return result, nil
+	return result
 }
 
 func Format(lines []LineInfo, opts Options) []string {
