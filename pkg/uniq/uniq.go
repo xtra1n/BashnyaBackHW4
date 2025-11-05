@@ -29,14 +29,16 @@ func scanLines(reader io.Reader, options Options) (map[string]*LineInfo, []strin
 		line := scanner.Text()
 		key := processLine(line, options)
 
-		if data, exists := lineMap[key]; exists {
-			data.Count++
-		} else {
-			lineMap[key] = &LineInfo{
-				Data:  line,
-				Count: 1,
+		if key != "" {
+			if data, exists := lineMap[key]; exists {
+				data.Count++
+			} else {
+				lineMap[key] = &LineInfo{
+					Data:  line,
+					Count: 1,
+				}
+				lineOrder = append(lineOrder, key)
 			}
-			lineOrder = append(lineOrder, key)
 		}
 	}
 
