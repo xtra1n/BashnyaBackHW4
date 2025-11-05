@@ -21,31 +21,39 @@ func Process(reader io.Reader, options Options) ([]LineInfo, error) {
 }
 
 func scanLines(reader io.Reader, options Options) (map[string]*LineInfo, []string, error) {
-	scanner := bufio.NewScanner(reader)
-	var lineOrder []string
-	lineMap := make(map[string]*LineInfo)
+    scanner := bufio.NewScanner(reader)
+    var lineOrder []string
+    lineMap := make(map[string]*LineInfo)
+    var prevKey string
+    var currentIndex int = -1
 
-	for scanner.Scan() {
-		line := scanner.Text()
-		key := processLine(line, options)
+    for scanner.Scan() {
+        line := scanner.Text()
+        key := processLine(line, options)
 
-		if data, exists := lineMap[key]; exists {
-			data.Count++
-		} else {
-			lineMap[key] = &LineInfo{
-				Data:  line,
-				Count: 1,
-			}
-			lineOrder = append(lineOrder, key)
-		}
-	}
+        if currentIndex >= 0 && key == prevKey {
+            lastKey := lineOrder[currentIndex]
+            lineMap[lastKey].Count++
+        } else {
+            uniqueKey := fmt.Sprintf("%d:%s", len(lineOrder), line)
+            lineMap[uniqueKey] = &LineInfo{
+                Data:  line,
+                Count: 1,
+            }
+            lineOrder = append(lineOrder, uniqueKey)
+            currentIndex = len(lineOrder) - 1
+        }
+        
+        prevKey = key
+    }
 
-	if err := scanner.Err(); err != nil {
-		return nil, nil, fmt.Errorf("error reading input")
-	}
+    if err := scanner.Err(); err != nil {
+        return nil, nil, fmt.Errorf("error reading input")
+    }
 
-	return lineMap, lineOrder, nil
+    return lineMap, lineOrder, nil
 }
+
 
 func filterLines(lineMap map[string]*LineInfo, lineOrder []string, options Options) []LineInfo {
 	var result []LineInfo
